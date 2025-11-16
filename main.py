@@ -87,7 +87,7 @@ def start(msg):
     msg.chat.id,
     VIDEO_ID,
     caption=(
-        "🎉 *Welcome to LinkVault X Bot!*\n\n"
+        "🎉 *Welcome to LinkFileX Bot!*\n\n"
         "Securely store your:\n"
         "📁 Documents\n🖼 Photos\n🎞 Videos\n🎧 Audios\n📝 Stickers & GIFs\n\n"
         "Just send me *any file* & I’ll generate a private download link.\n\n"
