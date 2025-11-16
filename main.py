@@ -214,5 +214,5 @@ def stats(msg):
 # ------------------------------------------------
 # 🚀 START POLLING
 # ------------------------------------------------
-print("🚀 LinkVault X Bot is absolutely fukking amazing...")
+print("🚀 Linkfile X Bot is absolutely fukking amazing...")
 bot.infinity_polling()
