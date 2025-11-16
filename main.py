@@ -2,34 +2,26 @@
 # 🔐 LINKVAULT X BOT — ULTRA STORAGE EDITION
 # 👨‍💻 Developer: @SigmaDoxx
 # 🛰 100% Telegram-Based Cloud Storage
-# 📦 No server, No DB, No Mongo, No hosting files
+# 📦 RAM storage only (Railway friendly)
 # ================================================
 
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import random, string
-import json, os   # ← ADDED
+import os
 
 # ------------------------------------------------
-# 🔧 CONFIG — CHANGE THESE
+# 🔧 CONFIG — RAILWAY ENVIRONMENT VARIABLES
 # ------------------------------------------------
-
-BOT_TOKEN = "8212674733:AAGbldHSNzt5lTYIRdzZj-ZvQdkqs1gE_GY"
-ADMIN_ID = 6193742824
-STORAGE_CHANNEL = -1003303374370 
-FORCE_JOIN_CHANNEL = "@SigmaDox0"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
+STORAGE_CHANNEL = int(os.getenv("STORAGE_CHANNEL"))
+FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # Temporary RAM memory storage
 fileDB = {}
-
-# ====== LOAD OLD DB IF EXISTS ======
-if os.path.exists("fileDB.json"):
-    with open("fileDB.json", "r") as f:
-        fileDB = json.load(f)
-# ===================================
-
 
 # ------------------------------------------------
 # 🔑 Unique Key Generator
@@ -81,22 +73,22 @@ def start(msg):
         return
     
     # Video Welcome (Optional)
-    # Normal Welcome
     VIDEO_ID = "https://t.me/PIROxSIGMA/176"
     bot.send_video(
-    msg.chat.id,
-    VIDEO_ID,
-    caption=(
-        "🎉 *Welcome to LinkFileX Bot!*\n\n"
-        "Securely store your:\n"
-        "📁 Documents\n🖼 Photos\n🎞 Videos\n🎧 Audios\n📝 Stickers & GIFs\n\n"
-        "Just send me *any file* & I’ll generate a private download link.\n\n"
-        "🔐 Your privacy, our priority.\n"
-        "👨‍💻 Developed by: @SigmaDoxx"
-    ),
-    parse_mode="Markdown",
-    supports_streaming=True
-)
+        msg.chat.id,
+        VIDEO_ID,
+        caption=(
+            "🎉 *Welcome to LinkVault X Bot!*\n\n"
+            "Securely store your:\n"
+            "📁 Documents\n🖼 Photos\n🎞 Videos\n🎧 Audios\n📝 Stickers & GIFs\n\n"
+            "Just send me *any file* & I’ll generate a private download link.\n\n"
+            "🔐 Your privacy, our priority.\n"
+            "👨‍💻 Developed by: @SigmaDoxx"
+        ),
+        parse_mode="Markdown",
+        supports_streaming=True
+    )
+
 # ------------------------------------------------
 # 📥 FILE RECEIVE HANDLER (ALL MEDIA TYPES)
 # ------------------------------------------------
@@ -120,18 +112,13 @@ def file_handler(msg):
     # Generate file key
     key = gen_key()
 
-    # Save file reference
+    # Save file reference in RAM
     fileDB[key] = {
         "msg_id": stored.message_id,
         "name": fname,
         "size": fsize,
         "type": ftype
     }
-
-    # ====== SAVE TO JSON ======
-    with open("fileDB.json", "w") as f:
-        json.dump(fileDB, f)
-    # ==========================
 
     # Magic link
     link = f"https://t.me/{bot.get_me().username}?start={key}"
@@ -180,26 +167,19 @@ def serve_file(chat_id, key):
 def get_file_info(msg):
     if msg.document:
         return ("Document", msg.document.file_name, f"{round(msg.document.file_size/1024,2)} KB")
-
     if msg.photo:
         p = msg.photo[-1]
         return ("Photo", "Image.jpg", f"{round(p.file_size/1024,2)} KB")
-
     if msg.video:
         return ("Video", msg.video.file_name or "Video.mp4", f"{round(msg.video.file_size/1024,2)} KB")
-
     if msg.audio:
         return ("Audio", msg.audio.file_name or "Audio.mp3", f"{round(msg.audio.file_size/1024,2)} KB")
-
     if msg.voice:
         return ("Voice Note", "Voice.ogg", f"{round(msg.voice.file_size/1024,2)} KB")
-
     if msg.sticker:
         return ("Sticker", "Sticker.webp", "N/A")
-
     if msg.animation:
         return ("GIF", "Animation.gif", f"{round(msg.animation.file_size/1024,2)} KB")
-
     return ("Unknown", "Unknown", "0 KB")
 
 # ------------------------------------------------
@@ -214,5 +194,5 @@ def stats(msg):
 # ------------------------------------------------
 # 🚀 START POLLING
 # ------------------------------------------------
-print("🚀 Linkfile X Bot is absolutely fukking amazing...")
+print("🚀 LinkVault X Bot is running on Railway...")
 bot.infinity_polling()
