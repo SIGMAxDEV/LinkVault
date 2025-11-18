@@ -2,26 +2,33 @@
 # 🔐 LINKVAULT X BOT — ULTRA STORAGE EDITION
 # 👨‍💻 Developer: @SigmaDoxx
 # 🛰 100% Telegram-Based Cloud Storage
-# 📦 RAM storage only (Railway friendly)
+# 📦 MongoDB Storage (Persistent & Safe)
 # ================================================
 
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import random, string
 import os
+from datetime import datetime
+from pymongo import MongoClient
 
 # ------------------------------------------------
-# 🔧 CONFIG — RAILWAY ENVIRONMENT VARIABLES
+# 🔧 CONFIG — ENV VARIABLES
 # ------------------------------------------------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 STORAGE_CHANNEL = int(os.getenv("STORAGE_CHANNEL"))
 FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL")
+MONGODB_URI = os.getenv("MONGODB_URI")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Temporary RAM memory storage
-fileDB = {}
+# ------------------------------------------------
+# 🗄 CONNECT MONGODB
+# ------------------------------------------------
+mongo = MongoClient(MONGODB_URI)
+db = mongo["linkvault"]
+files_col = db["files"]  # main storage collection
 
 # ------------------------------------------------
 # 🔑 Unique Key Generator
@@ -50,12 +57,15 @@ def start(msg):
     args = msg.text.split()
     if len(args) > 1:
         key = args[1]
-        if key in fileDB:
-            serve_file(msg.chat.id, key)
-            return
-        else:
+
+        file_data = files_col.find_one({"key": key})
+
+        if not file_data:
             bot.send_message(msg.chat.id, "❌ Invalid or expired link.")
             return
+
+        serve_file(msg.chat.id, file_data)
+        return
 
     # Force Join Logic
     if not is_member(uid):
@@ -72,7 +82,7 @@ def start(msg):
         )
         return
     
-    # Video Welcome (Optional)
+    # Video Welcome
     VIDEO_ID = "https://t.me/PIROxSIGMA/176"
     bot.send_video(
         msg.chat.id,
@@ -90,7 +100,7 @@ def start(msg):
     )
 
 # ------------------------------------------------
-# 📥 FILE RECEIVE HANDLER (ALL MEDIA TYPES)
+# 📥 FILE RECEIVE HANDLER
 # ------------------------------------------------
 @bot.message_handler(content_types=[
     'document','photo','video','audio','voice','sticker','animation'
@@ -98,32 +108,33 @@ def start(msg):
 def file_handler(msg):
     uid = msg.from_user.id
 
-    # Force Join Logic
     if not is_member(uid):
-        bot.send_message(msg.chat.id, "❌ Please join the channel first. @SigmaDox0")
+        bot.send_message(msg.chat.id, "❌ Please join the channel first.")
         return
 
-    # Forward file to private storage channel
+    # Forward to storage channel
     stored = bot.forward_message(STORAGE_CHANNEL, msg.chat.id, msg.message_id)
 
     # Extract metadata
     ftype, fname, fsize = get_file_info(msg)
 
-    # Generate file key
+    # Unique file key
     key = gen_key()
 
-    # Save file reference in RAM
-    fileDB[key] = {
+    # Save to MongoDB (persistent)
+    files_col.insert_one({
+        "key": key,
         "msg_id": stored.message_id,
         "name": fname,
         "size": fsize,
-        "type": ftype
-    }
+        "type": ftype,
+        "user_id": uid,
+        "date": datetime.utcnow()
+    })
 
     # Magic link
     link = f"https://t.me/{bot.get_me().username}?start={key}"
 
-    # Send reply to user
     bot.send_message(
         msg.chat.id,
         f"📦 **File Saved Successfully!**\n\n"
@@ -138,12 +149,9 @@ def file_handler(msg):
     )
 
 # ------------------------------------------------
-# 📤 SERVE FILE BACK TO USER
+# 📤 SERVE FILE
 # ------------------------------------------------
-def serve_file(chat_id, key):
-    data = fileDB[key]
-
-    # Copy file back from storage
+def serve_file(chat_id, data):
     bot.copy_message(
         chat_id,
         STORAGE_CHANNEL,
@@ -156,7 +164,7 @@ def serve_file(chat_id, key):
         f"📌 **Name:** `{data['name']}`\n"
         f"📌 **Type:** `{data['type']}`\n"
         f"📌 **Size:** `{data['size']}`\n\n"
-        f"🔐 Delivered securely via LinkFileXBot.\n"
+        f"🔐 Delivered securely via LinkVault X Bot.\n"
         f"Powered by @SigmaDoxx",
         parse_mode="Markdown"
     )
@@ -183,16 +191,18 @@ def get_file_info(msg):
     return ("Unknown", "Unknown", "0 KB")
 
 # ------------------------------------------------
-# 🚨 ADMIN COMMAND
+# 📊 ADMIN COMMAND
 # ------------------------------------------------
 @bot.message_handler(commands=['stats'])
 def stats(msg):
     if msg.from_user.id != ADMIN_ID:
         return
-    bot.send_message(msg.chat.id, f"📊 Total Files Stored: {len(fileDB)}")
+    
+    count = files_col.count_documents({})
+    bot.send_message(msg.chat.id, f"📊 Total Files Stored: `{count}`", parse_mode="Markdown")
 
 # ------------------------------------------------
-# 🚀 START POLLING
+# 🚀 START BOT
 # ------------------------------------------------
-print("🚀 LinkVault X Bot is running on Railway...")
+print("🚀 LinkVault X Bot is running with MongoDB...")
 bot.infinity_polling()
